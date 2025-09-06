@@ -1,0 +1,83 @@
+this is file contain steps to achieve transfer s3 object from one bucket to antoher bucket in another account (same region).
+
+1. Create two AWS S3 buckets in two separate accounts.
+    2. Create an AWS IAM policy in the destination account that will allow reading the source bucket and writing the destination bucket.
+    3. Create an IAM user in the destination account, and connect to the IAM policy.
+    4. Create a bucket-policy that will allow the destination account to get objects from the source bucket.
+    5. Copy the objects from the source bucket to the destination bucket, using the AWS CLI.
+
+breif second step: 
+Create an AWS IAM policy in the destination account that will allow reading the source bucket and writing the destination bucket.
+
+Go to the destination account’s Identity and Access Management (IAM) dashboard. From the Access management options, click “Policies.”
+
+Policy update accordingly your configuration.
+-----------------------------------------------
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::uadmin-sourcebucket",
+        "arn:aws:s3:::uadmin-sourcebucket/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:PutObject",
+        "s3:PutObjectAcl"
+      ],
+      "Resource": [
+        "arn:aws:s3:::uadmin-destinationbucket",
+        "arn:aws:s3:::uadmin-destinationbucket/*"
+      ]
+    }
+  ]
+}
+
+# Create a Bucket Policy for the Source Bucket in the Source Account. (but replace the example bucket names with your own and your destination account )
+------------------------------------------
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowCopy",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::<destination_account_id>:root"
+      },
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::uadmin-sourcebucket/*",
+        "arn:aws:s3:::uadmin-sourcebucket"
+      ]
+    }
+  ]
+}
+
+
+------------------------------------
+Copying an Object from the Source Bucket to the Destination Bucket
+
+using sso creds if you have or else create access key and scret access key of destination account
+In Windows you can set the keys as follows:
+SET AWS_ACCESS_KEY_ID=<TOEKN> SET AWS_SECRET_ACCESS_KEY=<TOKEN>
+
+In Linux/Unix machines or Mac, you can set the keys as follows:
+export AWS_ACCESS_KEY_ID=<TOKEN> export AWS_SECRET_ACCESS_KEY=<TOKEN>
+
+Now, copy the objects from source to destination:
+aws s3 sync s3://uadmin-sourcebucket s3://uadmin-destinationbucket
+
+Done! Nothing to sport!!
