@@ -1,18 +1,35 @@
-this is file contain steps to achieve transfer s3 object from one bucket to antoher bucket in another account (same region).
 
-1. Create two AWS S3 buckets in two separate accounts.
-    2. Create an AWS IAM policy in the destination account that will allow reading the source bucket and writing the destination bucket.
-    3. Create an IAM user in the destination account, and connect to the IAM policy.
-    4. Create a bucket-policy that will allow the destination account to get objects from the source bucket.
-    5. Copy the objects from the source bucket to the destination bucket, using the AWS CLI.
+# Guide: Copy S3 Objects Between Buckets Across AWS Accounts (Same Region)
 
-breif second step: 
-Create an AWS IAM policy in the destination account that will allow reading the source bucket and writing the destination bucket.
+This guide explains how to transfer objects from a **source S3 bucket** in **Account A** to a **destination S3 bucket** in **Account B** within the same AWS region.
 
-Go to the destination account’s Identity and Access Management (IAM) dashboard. From the Access management options, click “Policies.”
+---
 
-Policy update accordingly your configuration.
------------------------------------------------
+## 🔹 Prerequisites
+
+* Two AWS accounts (**Source Account A** and **Destination Account B**).
+* AWS CLI installed and configured.
+* Permissions to create IAM policies and bucket policies in both accounts.
+
+---
+
+## 1. Create Two S3 Buckets
+
+* In **Account A (Source)** → Create bucket: `uadmin-sourcebucket`
+* In **Account B (Destination)** → Create bucket: `uadmin-destinationbucket`
+
+---
+
+## 2. Create IAM Policy in Destination Account
+
+In **Account B (Destination)**, create an IAM policy that allows:
+
+* **Read access** to the source bucket (in Account A).
+* **Write access** to the destination bucket.
+
+Example IAM Policy (`S3CrossAccountCopyPolicy`):
+
+```json
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -41,43 +58,86 @@ Policy update accordingly your configuration.
     }
   ]
 }
+```
 
-# Create a Bucket Policy for the Source Bucket in the Source Account. (but replace the example bucket names with your own and your destination account )
-------------------------------------------
+---
 
+## 3. Create IAM User or Role in Destination Account
+
+* In **Account B (Destination)**:
+
+  * Create an IAM user (for CLI access) or an IAM role (for automation).
+  * Attach the above policy (`S3CrossAccountCopyPolicy`).
+
+> 📌 If using an IAM user, download the **Access Key** and **Secret Key** for later use.
+
+---
+
+## 4. Add Bucket Policy to Source Bucket
+
+In **Account A (Source)**, update the bucket policy of `uadmin-sourcebucket` to allow **Account B** to read objects:
+
+```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "AllowCopy",
+      "Sid": "AllowCrossAccountRead",
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::<destination_account_id>:root"
+        "AWS": "arn:aws:iam::<DESTINATION_ACCOUNT_ID>:root"
       },
       "Action": [
         "s3:ListBucket",
         "s3:GetObject"
       ],
       "Resource": [
-        "arn:aws:s3:::uadmin-sourcebucket/*",
-        "arn:aws:s3:::uadmin-sourcebucket"
+        "arn:aws:s3:::uadmin-sourcebucket",
+        "arn:aws:s3:::uadmin-sourcebucket/*"
       ]
     }
   ]
 }
+```
 
+---
 
-------------------------------------
-Copying an Object from the Source Bucket to the Destination Bucket
+## 5. Configure AWS CLI Credentials
 
-using sso creds if you have or else create access key and scret access key of destination account
-In Windows you can set the keys as follows:
-SET AWS_ACCESS_KEY_ID=<TOEKN> SET AWS_SECRET_ACCESS_KEY=<TOKEN>
+Use **destination account credentials** (Account B), either by SSO or Access Keys.
 
-In Linux/Unix machines or Mac, you can set the keys as follows:
-export AWS_ACCESS_KEY_ID=<TOKEN> export AWS_SECRET_ACCESS_KEY=<TOKEN>
+### On **Linux/Mac**:
 
-Now, copy the objects from source to destination:
+```bash
+export AWS_ACCESS_KEY_ID=<ACCESS_KEY>
+export AWS_SECRET_ACCESS_KEY=<SECRET_KEY>
+```
+
+### On **Windows PowerShell**:
+
+```powershell
+setx AWS_ACCESS_KEY_ID "<ACCESS_KEY>"
+setx AWS_SECRET_ACCESS_KEY "<SECRET_KEY>"
+```
+
+---
+
+## 6. Copy Objects from Source to Destination
+
+Use AWS CLI `sync` or `cp` command:
+
+### Sync entire bucket:
+
+```bash
 aws s3 sync s3://uadmin-sourcebucket s3://uadmin-destinationbucket
+```
 
-Done! Nothing to sport!!
+### Copy a single file:
+
+```bash
+aws s3 cp s3://uadmin-sourcebucket/myfile.txt s3://uadmin-destinationbucket/
+```
+
+---
+
+## ✅ Done!
